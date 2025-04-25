@@ -1,0 +1,682 @@
+---
+import { getCartWithProducts, updateCartItemQuantity } from '../lib/queries';
+import { removeCartItem, clearCart } from '../lib/queries';
+
+const userCookie = Astro.cookies.get('user');
+let user = null;
+
+if (userCookie) {
+  try {
+    user = JSON.parse(userCookie.value);
+  } catch (e) {
+    user = null;
+  }
+}
+
+interface CartItem {
+  CartItem: {
+    id: number;
+    quantity: number;
+  };
+  Product: {
+    id: number;
+    title: string;
+    description: string;
+    price: number;
+    old_price?: number;
+    image: string;
+    stock: number;
+  };
+}
+
+let cartItems: CartItem[] = [];
+let total: number = 0;
+
+if (user) {
+  try {
+    cartItems = await getCartWithProducts(user.id);
+    total = cartItems.reduce((sum: number, item: CartItem) => sum + (item.Product.price * item.CartItem.quantity), 0);
+  } catch (error) {
+    console.error('Error al cargar el carrito:', error);
+  }
+}
+
+// Preparar datos para el cliente
+const cartItemsData = cartItems.map(item => ({
+  id: item.CartItem.id,
+  productId: item.Product.id,
+  title: item.Product.title,
+  description: item.Product.description,
+  price: item.Product.price,
+  oldPrice: item.Product.old_price,
+  image: item.Product.image,
+  stock: item.Product.stock,
+  quantity: item.CartItem.quantity
+}));
+---
+
+<main>
+  <h2 class="titulo-principal">Carrito</h2>
+  <div class="contenedor-carrito">
+    {!user ? (
+      <div class="carrito-vacio-container">
+        <i class="bi bi-cart-x"></i>
+        <p class="carrito-vacio">Por favor, <a href="/login/">inicia sesión</a> para ver tu carrito.</p>
+      </div>
+    ) : cartItems.length === 0 ? (
+      <div class="carrito-vacio-container">
+        <i class="bi bi-cart-x"></i>
+        <p id="carrito-vacio" class="carrito-vacio">Tu carrito está vacío</p>
+        <span class="carrito-vacio"> 😢</span>
+        <a href="/" class="btn-buscar-productos">
+          <i class="bi bi-search"></i> Buscar productos
+        </a>
+      </div>
+    ) : (
+      <>
+        <div id="carrito-productos" class="carrito-productos">
+          {cartItems.map(item => (
+            <div class="carrito-producto" data-id={item.CartItem.id} data-product-id={item.Product.id} data-stock={item.Product.stock} data-price={item.Product.price}>
+              <img src={item.Product.image || '/placeholder.jpg'} alt={item.Product.title} />
+              <div class="carrito-producto-detalles">
+                <h3>{item.Product.title}</h3>
+                <p>{item.Product.description || 'Sin descripción'}</p>
+                <div class="carrito-producto-precio">
+                  <span class="precio-actual">${item.Product.price.toFixed(2)}</span>
+                  {item.Product.old_price && (
+                    <span class="precio-anterior">${item.Product.old_price.toFixed(2)}</span>
+                  )}
+                </div>
+                <div class="cantidad-control">
+                  <button class="cantidad-btn restar" disabled={item.CartItem.quantity <= 1}>
+                    <i class="bi bi-dash"></i>
+                  </button>
+                  <span class="carrito-producto-cantidad">{item.CartItem.quantity}</span>
+                  <button class="cantidad-btn sumar" disabled={item.CartItem.quantity >= item.Product.stock}>
+                    <i class="bi bi-plus"></i>
+                  </button>
+                </div>
+                <p class="carrito-cantidad-disponible">Disponibles: {item.Product.stock}</p>
+                <button class="carrito-borrar-producto">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div id="carrito-acciones" class="carrito-acciones">
+          <div class="carrito-acciones-izquierda">
+            <button id="carrito-acciones-vaciar" class="carrito-acciones-vaciar">Vaciar carrito</button>
+          </div>
+          <div class="carrito-acciones-derecha">
+            <div class="carrito-acciones-total">
+              <p>Total:</p>
+              <p id="total">${total.toFixed(2)}</p>
+            </div>
+            <button id="carrito-acciones-comprar" class="carrito-acciones-comprar">Comprar ahora</button>
+          </div>
+        </div>
+      </>
+    )}
+  </div>
+</main>
+
+<script define:vars={{ cartItemsData }}>
+  // Datos del carrito
+  let cartItems = cartItemsData;
+  let total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  // Función para actualizar el total
+  function updateTotal() {
+    const totalElement = document.getElementById('total');
+    if (totalElement) {
+      total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      totalElement.textContent = total.toFixed(2);
+    }
+  }
+
+  // Función para actualizar el estado de los botones
+  function updateButtonStates(producto, cantidadActual, stock) {
+    const restarBtn = producto.querySelector('.restar');
+    const sumarBtn = producto.querySelector('.sumar');
+    
+    if (restarBtn) {
+      restarBtn.disabled = cantidadActual <= 1;
+      restarBtn.style.opacity = cantidadActual <= 1 ? '0.5' : '1';
+      restarBtn.style.cursor = cantidadActual <= 1 ? 'not-allowed' : 'pointer';
+    }
+    if (sumarBtn) {
+      sumarBtn.disabled = cantidadActual >= stock;
+      sumarBtn.style.opacity = cantidadActual >= stock ? '0.5' : '1';
+      sumarBtn.style.cursor = cantidadActual >= stock ? 'not-allowed' : 'pointer';
+    }
+  }
+
+  // Función para actualizar el contador del carrito en el header
+  function updateCartCounter() {
+    const numerito = document.getElementById('numerito');
+    if (numerito) {
+      const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+      numerito.textContent = totalItems.toString();
+      
+      // Si no hay items, ocultar el contador
+      if (totalItems === 0) {
+        numerito.style.display = 'none';
+      } else {
+        numerito.style.display = 'inline';
+      }
+      
+      // Disparar evento personalizado para actualizar el contador en el header
+      const event = new CustomEvent('cartUpdated', { 
+        detail: { count: totalItems } 
+      });
+      document.dispatchEvent(event);
+    }
+  }
+
+  // Función para mostrar el mensaje de carrito vacío
+  function showEmptyCartMessage() {
+    const carritoProductos = document.querySelector('.carrito-productos');
+    const carritoAcciones = document.querySelector('.carrito-acciones');
+    if (!carritoProductos) return;
+
+    // Limpiar el contenedor
+    carritoProductos.innerHTML = '';
+
+    // Ocultar los botones de acciones
+    if (carritoAcciones) {
+      carritoAcciones.style.display = 'none';
+    }
+
+    // Crear el contenedor del mensaje
+    const emptyContainer = document.createElement('div');
+    emptyContainer.className = 'carrito-vacio-container';
+    
+    // Crear el icono
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-cart-x';
+    
+    // Crear el mensaje
+    const message = document.createElement('p');
+    message.className = 'carrito-vacio';
+    message.textContent = 'Tu carrito está vacío';
+    
+    // Agregar un emoji como elemento separado para evitar problemas de codificación
+    const emoji = document.createElement('span');
+    emoji.textContent = ' 😢';
+    message.appendChild(emoji);
+    
+    // Crear el botón
+    const button = document.createElement('a');
+    button.href = '/';
+    button.className = 'btn-buscar-productos';
+    button.innerHTML = '<i class="bi bi-search"></i> Buscar productos';
+    
+    // Agregar los elementos al contenedor
+    emptyContainer.appendChild(icon);
+    emptyContainer.appendChild(message);
+    emptyContainer.appendChild(button);
+    
+    // Agregar el contenedor al carrito
+    carritoProductos.appendChild(emptyContainer);
+
+    // Forzar un reflow para asegurar que los estilos se apliquen
+    void emptyContainer.offsetHeight;
+
+    // Aplicar los estilos directamente
+    emptyContainer.style.display = 'flex';
+    emptyContainer.style.flexDirection = 'column';
+    emptyContainer.style.alignItems = 'center';
+    emptyContainer.style.justifyContent = 'center';
+    emptyContainer.style.padding = '3rem 1rem';
+    emptyContainer.style.textAlign = 'center';
+
+    icon.style.fontSize = '4rem';
+    icon.style.color = '#e74c3c';
+    icon.style.marginBottom = '1rem';
+
+    message.style.textAlign = 'center';
+    message.style.color = '#7f8c8d';
+    message.style.fontSize = '1.2rem';
+    message.style.marginBottom = '1.5rem';
+
+    button.style.display = 'inline-flex';
+    button.style.alignItems = 'center';
+    button.style.gap = '0.5rem';
+    button.style.background = '#3498db';
+    button.style.color = 'white';
+    button.style.padding = '0.8rem 1.5rem';
+    button.style.borderRadius = '4px';
+    button.style.textDecoration = 'none';
+    button.style.fontWeight = '500';
+    button.style.transition = 'background 0.3s ease';
+  }
+
+  // Inicialización cuando el DOM está listo
+  document.addEventListener('DOMContentLoaded', () => {
+    const carritoProductos = document.getElementById('carrito-productos');
+    const carritoVacio = document.getElementById('carrito-vacio');
+    const totalElement = document.getElementById('total');
+    const vaciarCarritoBtn = document.getElementById('carrito-acciones-vaciar');
+    const comprarBtn = document.getElementById('carrito-acciones-comprar');
+
+    // Inicializar estados de botones
+    document.querySelectorAll('.carrito-producto').forEach(producto => {
+      const cantidadSpan = producto.querySelector('.carrito-producto-cantidad');
+      const cantidadActual = Math.floor(parseInt(cantidadSpan?.textContent || '0'));
+      const stock = parseInt(producto.getAttribute('data-stock') || '0');
+      updateButtonStates(producto, cantidadActual, stock);
+    });
+
+    // Manejar cambios de cantidad
+    carritoProductos?.addEventListener('click', async (e) => {
+      const target = e.target;
+      const producto = target.closest('.carrito-producto');
+      if (!producto) return;
+
+      const id = producto.getAttribute('data-id');
+      if (!id) return;
+
+      const cartItemId = parseInt(id);
+      const cantidadSpan = producto.querySelector('.carrito-producto-cantidad');
+      const cantidadActual = Math.floor(parseInt(cantidadSpan?.textContent || '0'));
+      const stock = parseInt(producto.getAttribute('data-stock') || '0');
+      const price = parseFloat(producto.getAttribute('data-price') || '0');
+
+      // Manejar botón de sumar
+      if (target.classList.contains('sumar')) {
+        // Verificar si el botón está deshabilitado
+        if (target.disabled) return;
+        
+        // Verificar si podemos aumentar la cantidad
+        if (cantidadActual < stock) {
+          const nuevaCantidad = cantidadActual + 1;
+          
+          // Actualizar UI inmediatamente
+          cantidadSpan.textContent = nuevaCantidad.toString();
+          
+          // Actualizar datos locales
+          const itemIndex = cartItems.findIndex(item => item.id === cartItemId);
+          if (itemIndex !== -1) {
+            cartItems[itemIndex].quantity = nuevaCantidad;
+            updateTotal();
+            updateButtonStates(producto, nuevaCantidad, stock);
+            updateCartCounter();
+          }
+
+          // Actualizar en el servidor en segundo plano
+          try {
+            const response = await fetch(`/api/cart/update/${cartItemId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ quantity: nuevaCantidad })
+            });
+            if (!response.ok) throw new Error('Error al actualizar');
+          } catch (error) {
+            console.error('Error:', error);
+            // Revertir cambios si hay error
+            cantidadSpan.textContent = cantidadActual.toString();
+            const itemIndex = cartItems.findIndex(item => item.id === cartItemId);
+            if (itemIndex !== -1) {
+              cartItems[itemIndex].quantity = cantidadActual;
+              updateTotal();
+              updateButtonStates(producto, cantidadActual, stock);
+              updateCartCounter();
+            }
+            alert('Error al actualizar la cantidad');
+          }
+        }
+      } 
+      // Manejar botón de restar
+      else if (target.classList.contains('restar')) {
+        // Verificar si el botón está deshabilitado
+        if (target.disabled) return;
+        
+        // Verificar si podemos disminuir la cantidad
+        if (cantidadActual > 1) {
+          const nuevaCantidad = cantidadActual - 1;
+          
+          // Actualizar UI inmediatamente
+          cantidadSpan.textContent = nuevaCantidad.toString();
+          
+          // Actualizar datos locales
+          const itemIndex = cartItems.findIndex(item => item.id === cartItemId);
+          if (itemIndex !== -1) {
+            cartItems[itemIndex].quantity = nuevaCantidad;
+            updateTotal();
+            updateButtonStates(producto, nuevaCantidad, stock);
+            updateCartCounter();
+          }
+
+          // Actualizar en el servidor en segundo plano
+          try {
+            const response = await fetch(`/api/cart/update/${cartItemId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ quantity: nuevaCantidad })
+            });
+            if (!response.ok) throw new Error('Error al actualizar');
+          } catch (error) {
+            console.error('Error:', error);
+            // Revertir cambios si hay error
+            cantidadSpan.textContent = cantidadActual.toString();
+            const itemIndex = cartItems.findIndex(item => item.id === cartItemId);
+            if (itemIndex !== -1) {
+              cartItems[itemIndex].quantity = cantidadActual;
+              updateTotal();
+              updateButtonStates(producto, cantidadActual, stock);
+              updateCartCounter();
+            }
+            alert('Error al actualizar la cantidad');
+          }
+        }
+      }
+      // Manejar botón de eliminar
+      else if (target.closest('.carrito-borrar-producto')) {
+        try {
+          const response = await fetch(`/api/cart/remove/${cartItemId}`, {
+            method: 'DELETE'
+          });
+          
+          if (response.ok) {
+            producto.remove();
+            cartItems = cartItems.filter(item => item.id !== cartItemId);
+            updateTotal();
+            updateCartCounter();
+            if (cartItems.length === 0) {
+              showEmptyCartMessage();
+            }
+          } else {
+            const errorData = await response.json();
+            alert('Error al eliminar el producto del carrito: ' + (errorData.error || 'Error desconocido'));
+          }
+        } catch (error) {
+          console.error('Error al eliminar producto:', error);
+          alert('Error al eliminar el producto del carrito');
+        }
+      }
+    });
+
+    // Vaciar carrito
+    vaciarCarritoBtn?.addEventListener('click', async () => {
+      if (!cartItems.length) {
+        alert('El carrito ya está vacío');
+        return;
+      }
+
+      if (!confirm('¿Estás seguro de que deseas vaciar el carrito?')) {
+        return;
+      }
+
+      try {
+        // Primero vaciar el carrito en el servidor
+        const response = await fetch('/api/cart/clear', {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al vaciar el carrito');
+        }
+        
+        // Si la operación en el servidor fue exitosa, actualizar la UI
+        cartItems = [];
+        total = 0;
+        updateCartCounter();
+        
+        // Mostrar el mensaje de carrito vacío
+        showEmptyCartMessage();
+        
+      } catch (error) {
+        console.error('Error al vaciar el carrito:', error);
+        alert('Error al vaciar el carrito. Por favor, intenta de nuevo.');
+      }
+    });
+
+    // Comprar
+    comprarBtn?.addEventListener('click', () => {
+      if (cartItems.length === 0) {
+        alert('Tu carrito está vacío. No puedes proceder con la compra.');
+        return;
+      }
+      window.location.href = '/checkout';
+    });
+  });
+</script>
+
+<style>
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .titulo-principal {
+    text-align: center;
+    margin-bottom: 2rem;
+    color: #1a1a1a;
+  }
+
+  .contenedor-carrito {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 2rem;
+  }
+
+  .carrito-vacio-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+  }
+
+  .carrito-vacio-container i.bi-cart-x {
+    font-size: 4rem;
+    color: #e74c3c;
+    margin-bottom: 1rem;
+  }
+
+  .carrito-vacio {
+    text-align: center;
+    color: #7f8c8d;
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .carrito-vacio a {
+    color: #1a1a1a;
+    text-decoration: none;
+  }
+
+  .btn-buscar-productos {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #3498db;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.3s ease;
+  }
+
+  .btn-buscar-productos:hover {
+    background: #2980b9;
+  }
+
+  .carrito-productos {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .carrito-producto {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid #ecf0f1;
+    border-radius: 8px;
+    position: relative;
+  }
+
+  .carrito-producto img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .carrito-producto-detalles {
+    flex: 1;
+  }
+
+  .carrito-producto-detalles h3 {
+    margin: 0 0 0.5rem 0;
+    color: #1a1a1a;
+  }
+
+  .carrito-producto-detalles p {
+    margin: 0 0 0.5rem 0;
+    color: #7f8c8d;
+  }
+
+  .carrito-producto-precio {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0.5rem 0;
+  }
+
+  .precio-actual {
+    font-weight: bold;
+    color: #e74c3c;
+    font-size: 1.2rem;
+  }
+
+  .precio-anterior {
+    color: #7f8c8d;
+    text-decoration: line-through;
+    font-size: 1rem;
+  }
+
+  .cantidad-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .cantidad-btn {
+    background: #1a1a1a;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
+
+  .cantidad-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .cantidad-btn:not(:disabled):hover {
+    opacity: 0.8;
+  }
+
+  .carrito-producto-cantidad {
+    font-weight: bold;
+  }
+
+  .carrito-cantidad-disponible {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+  }
+
+  .carrito-borrar-producto {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: #e74c3c;
+    cursor: pointer;
+  }
+
+  .carrito-acciones {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #ecf0f1;
+  }
+
+  .carrito-acciones-vaciar {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .carrito-acciones-total {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+
+  .carrito-acciones-comprar {
+    background: #1a1a1a;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 1rem;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    main {
+      padding: 1rem;
+    }
+
+    .carrito-producto {
+      flex-direction: column;
+    }
+
+    .carrito-producto img {
+      width: 100%;
+      height: 200px;
+    }
+
+    .carrito-acciones {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .carrito-acciones-derecha {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .carrito-acciones-comprar {
+      margin-left: 0;
+      width: 100%;
+    }
+  }
+</style>

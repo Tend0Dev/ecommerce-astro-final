@@ -1,0 +1,20 @@
+{
+  "name": "astro-ecommerce",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "astro build --remote",
+    "dev": "astro dev",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/db": "^0.14.11",
+    "@astrojs/vercel": "^8.0.4",
+    "@libsql/client": "^0.15.4",
+    "@tailwindcss/vite": "^4.1.4",
+    "astro": "^5.7.4",
+    "bcryptjs": "^3.0.2",
+    "tailwindcss": "^4.1.4"
+  }
+}

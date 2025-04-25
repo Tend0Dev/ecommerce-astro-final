@@ -1,0 +1,233 @@
+---
+import Header from "@components/Header.astro";
+import { getCartWithProducts, clearCart, createOrder, type CartItemWithProduct } from "../lib/queries";
+
+const userCookie = Astro.cookies.get('user');
+let user = null;
+let cartItems: CartItemWithProduct[] = [];
+let total = 0;
+
+if (userCookie) {
+  try {
+    user = JSON.parse(userCookie.value);
+    cartItems = await getCartWithProducts(user.id);
+    total = cartItems.reduce((sum, item) => sum + (item.Product.price * item.CartItem.quantity), 0);
+    
+    // Crear la orden en la base de datos
+    if (cartItems.length > 0) {
+      await createOrder({
+        user_id: user.id,
+        total: total,
+        items: cartItems.map(item => ({
+          product_id: item.Product.id,
+          quantity: item.CartItem.quantity,
+          price: item.Product.price
+        }))
+      });
+    }
+    
+    // Limpiar el carrito después de una compra exitosa
+    await clearCart(user.id);
+  } catch (e) {
+    console.error('Error al procesar la compra:', e);
+    user = null;
+  }
+}
+
+// Redirigir si no hay usuario
+if (!user) {
+  return Astro.redirect('/login?message=' + encodeURIComponent('Por favor inicia sesión para ver tu compra') + '&type=error');
+}
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¡Compra Exitosa! | Angel Shop</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+  <Header />
+</head>
+<body>
+  <main>
+    <div class="compra-exitosa">
+      <div class="icono-exito">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <h2>¡Compra Exitosa!</h2>
+      <p>Gracias por tu compra. Tu pedido ha sido procesado correctamente.</p>
+      
+      <div class="detalles-compra">
+        <h3>Detalles de tu compra</h3>
+        <div class="productos-comprados">
+          {cartItems.map(item => (
+            <div class="producto-item">
+              <img src={item.Product.image} alt={item.Product.title} />
+              <div class="producto-detalles">
+                <h4>{item.Product.title}</h4>
+                <p>Cantidad: {item.CartItem.quantity}</p>
+                <p class="precio">${(item.Product.price * item.CartItem.quantity).toFixed(2)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div class="total">
+          <h4>Total pagado</h4>
+          <p class="precio-total">${total.toFixed(2)}</p>
+        </div>
+      </div>
+
+      <div class="acciones">
+        <a href="/mis-compras" class="btn-ver-compras">
+          <i class="bi bi-bag"></i> Ver mis compras
+        </a>
+        <a href="/" class="btn-seguir-comprando">
+          <i class="bi bi-shop"></i> Seguir comprando
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <style>
+    main {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .compra-exitosa {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .icono-exito {
+      font-size: 4rem;
+      color: #2ecc71;
+      margin-bottom: 1rem;
+    }
+
+    .compra-exitosa h2 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+    }
+
+    .compra-exitosa p {
+      color: #7f8c8d;
+      margin-bottom: 2rem;
+    }
+
+    .detalles-compra {
+      text-align: left;
+      margin: 2rem 0;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .detalles-compra h3 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+    }
+
+    .productos-comprados {
+      margin: 1rem 0;
+    }
+
+    .producto-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid #ecf0f1;
+    }
+
+    .producto-item img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+
+    .producto-detalles h4 {
+      margin: 0 0 0.5rem 0;
+      color: #2c3e50;
+    }
+
+    .producto-detalles p {
+      margin: 0;
+      color: #7f8c8d;
+    }
+
+    .precio {
+      color: #e74c3c !important;
+      font-weight: bold;
+    }
+
+    .total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 2px solid #ecf0f1;
+    }
+
+    .precio-total {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #e74c3c;
+    }
+
+    .acciones {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    .btn-ver-compras,
+    .btn-seguir-comprando {
+      padding: 0.8rem 1.5rem;
+      border-radius: 4px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+
+    .btn-ver-compras {
+      background: #2ecc71;
+      color: white;
+    }
+
+    .btn-seguir-comprando {
+      background: #3498db;
+      color: white;
+    }
+
+    .btn-ver-compras:hover {
+      background: #27ae60;
+    }
+
+    .btn-seguir-comprando:hover {
+      background: #2980b9;
+    }
+
+    @media (max-width: 768px) {
+      .acciones {
+        flex-direction: column;
+      }
+
+      .btn-ver-compras,
+      .btn-seguir-comprando {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</body>
+</html> 

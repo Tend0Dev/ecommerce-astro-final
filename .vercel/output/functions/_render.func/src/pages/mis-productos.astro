@@ -1,0 +1,374 @@
+---
+import Header from "@components/Header.astro";
+import { getUserProducts } from "../lib/queries";
+
+const userCookie = Astro.cookies.get('user');
+let user = null;
+
+if (userCookie) {
+  try {
+    user = JSON.parse(userCookie.value);
+  } catch (e) {
+    user = null;
+  }
+}
+
+// Redirigir si no hay usuario
+if (!user) {
+  return Astro.redirect('/login?message=' + encodeURIComponent('Por favor inicia sesión para ver tus productos') + '&type=error');
+}
+
+// Obtener productos del usuario
+const products = await getUserProducts(user.id);
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mis Productos</title>
+  <Header />
+</head>
+<body>
+  <div class="contenedor">
+    <h1>Mis Productos</h1>
+    
+    {products.length === 0 ? (
+      <div class="no-productos">
+        <i class="bi bi-emoji-frown"></i>
+        <p>Aún no has publicado ningún producto</p>
+        <a href="/sell/" class="btn-publicar">Publicar mi primer producto</a>
+      </div>
+    ) : (
+      <div class="productos-grid">
+        {products.map(product => (
+          <div class="producto-card" data-id={product.id}>
+            <div class="stock-indicator" data-stock={product.stock > 0 ? "in-stock" : "out-stock"}>
+              {product.stock > 0 ? (
+                <i class="bi bi-check-circle-fill"></i>
+              ) : (
+                <i class="bi bi-x-circle-fill"></i>
+              )}
+              <span>{product.stock > 0 ? "En stock" : "Sin stock"}</span>
+            </div>
+            <img src={product.image} alt={product.title} />
+            <div class="producto-info">
+              <h3>{product.title}</h3>
+              <p class="precio">${product.price.toFixed(2)}</p>
+              <div class="stock-control">
+                <div class="stock-row">
+                  <p class="stock">Stock actual:</p>
+                  <div class="stock-buttons">
+                    <button class="btn-stock restar" disabled={product.stock <= 0}>
+                      <i class="bi bi-dash"></i>
+                    </button>
+                    <span class="stock-cantidad">{product.stock}</span>
+                    <button class="btn-stock sumar">
+                      <i class="bi bi-plus"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="acciones-producto">
+                <a href={`/producto/${product.id}/editar`} class="btn-editar">
+                  <i class="bi bi-pencil"></i> Editar
+                </a>
+                <button class="btn-eliminar" data-id={product.id}>
+                  <i class="bi bi-trash"></i> Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const botonesEliminar = document.querySelectorAll('.btn-eliminar');
+      const botonesStock = document.querySelectorAll('.btn-stock');
+      
+      // Manejar eliminación de productos
+      botonesEliminar.forEach(boton => {
+        boton.addEventListener('click', async () => {
+          if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+            const id = boton.getAttribute('data-id');
+            if (id) {
+              try {
+                const response = await fetch(`/api/products/${id}`, {
+                  method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                  window.location.reload();
+                } else {
+                  alert('Error al eliminar el producto');
+                }
+              } catch (error) {
+                console.error('Error:', error);
+                alert('Error al eliminar el producto');
+              }
+            }
+          }
+        });
+      });
+
+      // Manejar actualización de stock
+      botonesStock.forEach(boton => {
+        boton.addEventListener('click', async () => {
+          const card = boton.closest('.producto-card');
+          if (!card) return;
+
+          const id = card.getAttribute('data-id');
+          if (!id) return;
+
+          const stockSpan = card.querySelector('.stock-cantidad');
+          const stockIndicator = card.querySelector('.stock-indicator');
+          const restarBtn = card.querySelector('.restar') as HTMLButtonElement;
+          
+          if (!stockSpan || !stockIndicator) return;
+
+          let currentStock = parseInt(stockSpan.textContent || '0');
+
+          if (boton.classList.contains('sumar')) {
+            currentStock++;
+          } else if (boton.classList.contains('restar') && currentStock > 0) {
+            currentStock--;
+          }
+
+          try {
+            const response = await fetch(`/api/products/update-stock/${id}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ stock: currentStock })
+            });
+
+            if (response.ok) {
+              stockSpan.textContent = currentStock.toString();
+              const stockText = card.querySelector('.stock');
+              if (stockText) {
+                stockText.textContent = `Stock actual: ${currentStock}`;
+              }
+              
+              // Actualizar indicador de stock
+              if (currentStock > 0) {
+                stockIndicator.setAttribute('data-stock', 'in-stock');
+                stockIndicator.innerHTML = '<i class="bi bi-check-circle-fill"></i><span>En stock</span>';
+              } else {
+                stockIndicator.setAttribute('data-stock', 'out-stock');
+                stockIndicator.innerHTML = '<i class="bi bi-x-circle-fill"></i><span>Sin stock</span>';
+              }
+
+              // Actualizar estado del botón restar
+              restarBtn.disabled = currentStock <= 0;
+            } else {
+              alert('Error al actualizar el stock');
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert('Error al actualizar el stock');
+          }
+        });
+      });
+    });
+  </script>
+
+  <style>
+    .contenedor {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 2rem;
+    }
+
+    .no-productos {
+      text-align: center;
+      padding: 3rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .no-productos i {
+      font-size: 3rem;
+      color: #7f8c8d;
+      margin-bottom: 1rem;
+    }
+
+    .btn-publicar {
+      display: inline-block;
+      background: #3498db;
+      color: white;
+      padding: 0.8rem 1.5rem;
+      border-radius: 6px;
+      text-decoration: none;
+      margin-top: 1rem;
+      transition: background 0.3s;
+    }
+
+    .btn-publicar:hover {
+      background: #2980b9;
+    }
+
+    .productos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 2rem;
+    }
+
+    .producto-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+    }
+
+    .stock-indicator {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      z-index: 1;
+      background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .stock-indicator[data-stock="in-stock"] {
+      color: #2ecc71;
+    }
+
+    .stock-indicator[data-stock="out-stock"] {
+      color: #e74c3c;
+    }
+
+    .producto-card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+
+    .producto-info {
+      padding: 1rem;
+    }
+
+    .producto-info h3 {
+      margin: 0 0 0.5rem 0;
+      color: #2c3e50;
+    }
+
+    .precio {
+      font-weight: bold;
+      color: #e74c3c;
+      margin-bottom: 1rem;
+    }
+
+    .stock-control {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+
+    .stock-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .stock {
+      color: #7f8c8d;
+      margin: 0;
+    }
+
+    .stock-buttons {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-stock {
+      background: #1a1a1a;
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-stock:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .stock-cantidad {
+      font-weight: bold;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .acciones-producto {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .btn-editar,
+    .btn-eliminar {
+      flex: 1;
+      padding: 0.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .btn-editar {
+      background: #1a1a1a;
+      color: white;
+    }
+
+    .btn-eliminar {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .btn-editar:hover {
+      background: #333;
+    }
+
+    .btn-eliminar:hover {
+      background: #c0392b;
+    }
+
+    @media (max-width: 768px) {
+      .productos-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</body>
+</html> 

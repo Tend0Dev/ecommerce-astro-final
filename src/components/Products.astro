@@ -1,0 +1,309 @@
+---
+import { getProducts } from '../lib/queries';
+
+interface Product {
+  id: number;
+  title: string;
+  description: string | null;
+  price: number;
+  old_price: number | null;
+  stock: number;
+  image: string | null;
+  user_id: number | null;
+}
+
+const userCookie = Astro.cookies.get('user');
+let user = null;
+
+if (userCookie) {
+  try {
+    user = JSON.parse(userCookie.value);
+  } catch (e) {
+    user = null;
+  }
+}
+
+// Obtener productos de Turso, excluyendo los del usuario actual
+const products = await getProducts(user?.id) as Product[];
+---
+
+<h2 class="titulo-seccion">Todos los Productos</h2>
+
+{products.length === 0 ? (
+  <div class="no-productos">
+    <i class="bi bi-emoji-frown"></i>
+    <p>No hay productos disponibles en este momento.</p>
+  </div>
+) : (
+  <div class="contenedor-productos">
+    {products.map(product => (
+      <div class="tarjeta-producto">
+        <img 
+          src={product.image || '/placeholder.jpg'} 
+          alt={product.title}
+          width="300"
+          height="200"
+          loading="lazy"
+          class="imagen-producto"
+        />
+        <div class="info-producto">
+          <h3 class="titulo-producto">{product.title}</h3>
+          <p class="descripcion-producto">{product.description || 'Sin descripción'}</p>
+          <div class="precio-container">
+            <p class="precio-producto">${product.price.toFixed(2)}</p>
+            {product.old_price && product.old_price > product.price && (
+              <p class="precio-anterior">${product.old_price.toFixed(2)}</p>
+            )}
+          </div>
+          <div class="stock-action-container">
+            <p class="stock-disponible">disponibles: {product.stock}</p>
+            {
+              user ? (
+                <form method="POST" action="/api/cart/add" class="add-to-cart-form">
+                  <input type="hidden" name="product_id" value={product.id} />
+                  <input type="hidden" name="quantity" value="1" />
+                  <button type="submit" class="agregar-carrito">
+                    <i class="bi bi-cart-plus"></i> Agregar
+                  </button>
+                </form>
+              ) : (
+                <a href="/login/" class="boton-login">
+                  <button class="agregar-carrito">
+                    <i class="bi bi-cart-plus"></i> Agregar
+                  </button>
+                </a>
+              )
+            }
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
+<script>
+  document.querySelectorAll('.add-to-cart-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      try {
+        const formData = new FormData(form as HTMLFormElement);
+        console.log('Enviando datos:', {
+          product_id: formData.get('product_id'),
+          quantity: formData.get('quantity')
+        });
+
+        const response = await fetch('/api/cart/add', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          alert('Producto agregado al carrito');
+        } else {
+          throw new Error('Error al agregar al carrito');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al agregar el producto al carrito');
+      }
+    });
+  });
+</script>
+
+<style>
+
+.stock-disponible {
+    font-size: 0.8rem;
+    color: rgba(0, 0, 0, 0.6);
+    background-color: rgba(245, 245, 245, 0.7);
+    backdrop-filter: blur(2px);
+    padding: 0.3rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    text-align: center;
+    min-width: 80px;
+    margin: 0;
+  }
+
+  /* Contenedor precio-acción ajustado */
+  .precio-accion {
+    display: flex;
+    justify-content: flex-end; /* Alinea los elementos al final */
+    align-items: center;
+    margin-top: 0.5rem;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  /* Ajuste para el precio */
+  .precio-producto {
+    margin-bottom: 0.5rem; /* Espacio entre precio y la fila de stock/botón */
+  }
+
+  /* Botón mantiene sus estilos pero sin margen izquierdo */
+  .agregar-carrito {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s;
+  }
+   
+  .titulo-seccion {
+    text-align: center;
+    margin: 2rem 0;
+    font-size: 2rem;
+    color: #2c3e50;
+    position: relative;
+  }
+
+  .titulo-seccion::after {
+    content: '';
+    display: block;
+    width: 80px;
+    height: 4px;
+    background: #3498db;
+    margin: 10px auto;
+    border-radius: 2px;
+  }
+
+  /* Contenedor de productos */
+  .contenedor-productos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+    padding: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* Tarjeta individual */
+  .tarjeta-producto {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tarjeta-producto:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Imagen del producto */
+  .imagen-producto {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* Información del producto */
+  .info-producto {
+    padding: 1.2rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .titulo-producto {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+    color: #2c3e50;
+  }
+
+  .descripcion-producto {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+    flex-grow: 1;
+  }
+
+  /* Precio y botón */
+  .precio-accion {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+  }
+
+  .precio-producto {
+    font-weight: bold;
+    color: #e74c3c;
+    font-size: 1.2rem;
+    margin: 0;
+  }
+
+  .stock-action-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.8rem;
+    width: 100%;
+  }
+
+  .agregar-carrito:hover {
+    background: #2980b9;
+  }
+
+  .agregar-carrito i {
+    font-size: 1rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .contenedor-productos {
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .contenedor-productos {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .no-productos {
+    text-align: center;
+    padding: 3rem;
+    color: #7f8c8d;
+  }
+
+  .no-productos i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  .no-productos p {
+    font-size: 1.2rem;
+  }
+
+  .precio-container {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin: 0.5rem 0;
+  }
+
+  .precio-anterior {
+    color: #7f8c8d;
+    text-decoration: line-through;
+    font-size: 0.9rem;
+  }
+
+  .boton-login {
+    text-decoration: none; /* Elimina el subrayado del enlace */
+    display: inline-block; /* Asegura que no haya espacios extraños */
+  }
+
+</style>

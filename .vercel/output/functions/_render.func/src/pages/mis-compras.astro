@@ -1,0 +1,230 @@
+---
+import Header from "@components/Header.astro";
+import { getUserOrders, type Order, type OrderItem } from "../lib/queries";
+
+const userCookie = Astro.cookies.get('user');
+let user = null;
+
+if (userCookie) {
+  try {
+    user = JSON.parse(userCookie.value);
+  } catch (e) {
+    user = null;
+  }
+}
+
+// Redirigir si no hay usuario
+if (!user) {
+  return Astro.redirect('/login?message=' + encodeURIComponent('Por favor inicia sesión para ver tus compras') + '&type=error');
+}
+
+// Obtener las compras del usuario
+const orders = await getUserOrders(user.id);
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mis Compras</title>
+  <Header />
+</head>
+<body>
+  <div class="contenedor">
+    <h1>Mis Compras</h1>
+    
+    {orders.length === 0 ? (
+      <div class="no-compras">
+        <i class="bi bi-emoji-frown"></i>
+        <p>Aún no has realizado ninguna compra</p>
+        <a href="/" class="btn-comprar">Ver productos disponibles</a>
+      </div>
+    ) : (
+      <div class="compras-lista">
+        {orders.map((order: Order) => (
+          <div class="compra-card">
+            <div class="compra-header">
+              <div class="compra-info">
+                <p class="fecha">{new Date(order.created_at).toLocaleDateString()}</p>
+                <p class="orden">Orden #{order.id}</p>
+                <p class="estado">{order.status}</p>
+              </div>
+              <p class="total">${order.total.toFixed(2)}</p>
+            </div>
+            <div class="productos-lista">
+              {order.items.map((item: OrderItem) => (
+                <div class="producto-item">
+                  <img src={item.product.image} alt={item.product.title} />
+                  <div class="producto-info">
+                    <h3>{item.product.title}</h3>
+                    <p class="cantidad">Cantidad: {item.quantity}</p>
+                    <p class="precio">${item.price.toFixed(2)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</body>
+</html>
+
+<style>
+  .contenedor {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 2rem;
+  }
+
+  .no-compras {
+    text-align: center;
+    padding: 3rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .no-compras i {
+    font-size: 3rem;
+    color: #7f8c8d;
+    margin-bottom: 1rem;
+  }
+
+  .btn-comprar {
+    display: inline-block;
+    background: #3498db;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    margin-top: 1rem;
+    transition: background 0.3s;
+  }
+
+  .btn-comprar:hover {
+    background: #2980b9;
+  }
+
+  .compras-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .compra-card {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .compra-header {
+    padding: 1rem;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e9ecef;
+  }
+
+  .compra-info {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .fecha {
+    color: #6c757d;
+  }
+
+  .orden {
+    font-weight: bold;
+  }
+
+  .estado {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: #2ecc71;
+    color: white;
+    font-size: 0.9rem;
+  }
+
+  .total {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #2c3e50;
+  }
+
+  .productos-lista {
+    padding: 1rem;
+  }
+
+  .producto-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+  }
+
+  .producto-item:last-child {
+    border-bottom: none;
+  }
+
+  .producto-item img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .producto-info {
+    flex: 1;
+  }
+
+  .producto-info h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    color: #2c3e50;
+  }
+
+  .cantidad {
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+
+  .precio {
+    font-weight: bold;
+    color: #2c3e50;
+  }
+
+  @media (max-width: 768px) {
+    .compra-header {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .compra-info {
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: flex-start;
+    }
+
+    .producto-item {
+      flex-direction: column;
+    }
+
+    .producto-item img {
+      width: 100%;
+      height: 200px;
+    }
+  }
+</style> 

@@ -1,0 +1,339 @@
+---
+import { getCartCount } from '../lib/queries';
+
+const userCookie = Astro.cookies.get('user');
+let user = null;
+let cartCount = 0;
+
+if (userCookie) {
+  try {
+    user = JSON.parse(userCookie.value);
+    // Obtener la cantidad total de productos en el carrito
+    cartCount = await getCartCount(user.id);
+  } catch (e) {
+    user = null;
+  }
+}
+
+---
+
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+</head>
+
+<nav>
+  <div><a href="/"><i class="bi bi-shop"></i> Angel | Shop</a></div>
+
+  <ul class="nav-links">
+    {user ? (
+      <>
+        <li>
+          <a href="/carrito/">
+            <i class="bi bi-cart-fill"></i> Carrito <span id="numerito" class="numerito">{cartCount}</span>
+          </a>
+        </li>
+
+        <li class="user-menu">
+          <button class="user-btn">
+            <i class="bi bi-person-circle"></i> {user.username}
+          </button>
+          <ul class="dropdown">
+            <li><a href="/sell/"><i class="bi bi-shop"></i> Vender</a></li>
+            <li><a href="/mis-productos/"><i class="bi bi-box-seam"></i> Mis Productos</a></li>
+            <li><a href="/mis-compras/"><i class="bi bi-bag"></i> Mis Compras</a></li>
+            <li><a href="/logout/"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a></li>
+          </ul>
+        </li>
+      </>
+    ) : (
+      <>
+        <li>
+          <a href="/login/">
+            <i class="bi bi-cart-fill"></i> Carrito <span id="numerito" class="numerito">0</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="/login/">
+            <button><i class="bi bi-box-arrow-in-right"></i> iniciar sesión</button>
+          </a>
+        </li>
+      </>
+    )}
+  </ul>
+</nav>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const userMenu = document.querySelector(".user-menu");
+    const userBtn = document.querySelector(".user-btn");
+
+    if (userBtn && userMenu) {
+      userBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        userMenu.classList.toggle("show");
+      });
+
+      // Cerrar si hacen click fuera
+      document.addEventListener("click", () => {
+        userMenu.classList.remove("show");
+      });
+
+      // Cerrar si hacen click dentro del menú
+      userMenu.addEventListener("click", (e) => {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'A') {
+          userMenu.classList.remove("show");
+        }
+      });
+    }
+
+    // Función para actualizar el contador del carrito
+    function updateCartCounter(count: number) {
+      const numerito = document.getElementById('numerito');
+      if (numerito) {
+        numerito.textContent = count.toString();
+        
+        // Si no hay items, ocultar el contador
+        if (count === 0) {
+          numerito.style.display = 'none';
+        } else {
+          numerito.style.display = 'flex';
+        }
+      }
+    }
+
+    // Escuchar eventos personalizados para actualizar el contador
+    document.addEventListener('cartUpdated', ((e: any) => {
+      const count = e.detail?.count;
+      if (count !== undefined) {
+        updateCartCounter(count);
+      }
+    }) as EventListener);
+  });
+</script>
+
+<style>
+  /* Variables de color con azul pastel tenue */
+  :root {
+    --primary-color: #3498db;       /* Azul principal */
+    --primary-hover: #5dade2;       /* Azul más claro para hover */
+    --header-bg: rgba(173, 216, 230, 0.15);  /* Azul pastel muy tenue (15% opacidad) */
+    --dark-color: #2c3e50;          /* Color oscuro para texto */
+    --light-color: #f8f9fa;         /* Color claro */
+    --accent-color: #e74c3c;        /* Color de acento (rojo) */
+    --text-color: #2c3e50;          /* Color de texto principal */
+    --bg-color: #fff;               /* Fondo blanco */
+    --shadow: 0 2px 15px rgba(0, 0, 0, 0.08); /* Sombra más suave */
+    --border-light: rgba(173, 216, 230, 0.3); /* Borde azul pastel */
+  }
+
+  /* Estilos base del nav - Fondo azul pastel tenue */
+  nav {
+    background-color: var(--header-bg);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    backdrop-filter: blur(8px); /* Efecto de vidrio esmerilado */
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  /* Logo/Título - Más suave */
+  nav div a {
+    color: var(--dark-color);
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+  }
+
+  nav div a:hover {
+    color: var(--primary-color);
+    transform: translateY(-1px);
+  }
+
+  nav div a i {
+    font-size: 1.8rem;
+    color: var(--primary-color);
+  }
+
+  /* Lista de navegación */
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+  }
+
+  /* Elementos del menú - Estilo más delicado */
+  .nav-links li a {
+    color: var(--text-color);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+  }
+
+  .nav-links li a:hover {
+    background-color: rgba(173, 216, 230, 0.2);
+    color: var(--primary-color);
+  }
+
+  /* Botón de usuario - Estilo refinado */
+  .user-btn {
+    background: rgba(173, 216, 230, 0.2);
+    border: none;
+    color: var(--text-color);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.3s;
+  }
+
+  .user-btn:hover {
+    background-color: rgba(173, 216, 230, 0.3);
+    color: var(--primary-color);
+  }
+
+  /* Dropdown menu - Estilo moderno */
+  .dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: var(--bg-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    list-style: none;
+    padding: 0.5rem 0;
+    margin-top: 0.5rem;
+    width: 220px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+    transform: translateY(10px);
+    border: 1px solid var(--border-light);
+  }
+
+  .user-menu {
+    position: relative;
+  }
+
+  .user-menu:hover .dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .dropdown li a {
+    padding: 0.7rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    color: var(--text-color);
+    transition: all 0.2s;
+  }
+
+  .dropdown li a:hover {
+    background: rgba(173, 216, 230, 0.1);
+    color: var(--primary-color);
+    padding-left: 1.7rem;
+  }
+
+  /* Contador del carrito - Más sutil */
+  .numerito {
+    background-color: var(--accent-color);
+    color: white;
+    border-radius: 50%;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.3rem;
+  }
+
+  /* Botón de login - Estilo elegante */
+  .nav-links li button {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.2);
+  }
+
+  .nav-links li button:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.25);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav {
+      padding: 0.8rem 1.5rem;
+    }
+    
+    .nav-links {
+      gap: 1rem;
+    }
+    
+    nav div a {
+      font-size: 1.3rem;
+    }
+    
+    .dropdown {
+      width: 200px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    nav {
+      padding: 0.8rem 1rem;
+    }
+    
+    nav div a {
+      font-size: 1.2rem;
+    }
+    
+    .nav-links li a,
+    .user-btn {
+      font-size: 0.9rem;
+      padding: 0.5rem 0.8rem;
+    }
+    
+    .dropdown {
+      width: 180px;
+    }
+    
+    .nav-links li button {
+      padding: 0.5rem 1rem;
+    }
+  }
+</style>

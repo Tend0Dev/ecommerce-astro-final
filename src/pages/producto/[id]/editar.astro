@@ -1,0 +1,336 @@
+---
+import Header from "@components/Header.astro";
+import { getProductById } from "../../../lib/queries";
+
+const userCookie = Astro.cookies.get('user');
+let user = null;
+
+if (userCookie) {
+  try {
+    user = JSON.parse(userCookie.value);
+  } catch (e) {
+    user = null;
+  }
+}
+
+// Redirigir si no hay usuario
+if (!user) {
+  return Astro.redirect('/login?message=' + encodeURIComponent('Por favor inicia sesión para editar productos') + '&type=error');
+}
+
+const { id } = Astro.params;
+if (!id) {
+  return Astro.redirect('/?message=' + encodeURIComponent('ID de producto no válido') + '&type=error');
+}
+const product = await getProductById(parseInt(id));
+
+// Si el producto no existe o no pertenece al usuario
+if (!product || product.user_id !== user.id) {
+  return Astro.redirect('/?message=' + encodeURIComponent('No tienes permiso para editar este producto') + '&type=error');
+}
+
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Producto | Angel Shop</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+  <Header />
+</head>
+<body>
+  <main>
+    <h2 class="titulo-principal">Editar Producto</h2>
+    <div class="contenedor-formulario">
+      <form id="form-editar">
+        <div class="form-group">
+          <label for="title">Título</label>
+          <input type="text" id="title" name="title" value={product.title} required />
+        </div>
+
+        <div class="form-group">
+          <label for="description">Descripción</label>
+          <textarea id="description" name="description" required>{product.description}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="price">Precio</label>
+          <input type="number" id="price" name="price" step="0.01" min="0" value={product.price} required />
+        </div>
+
+        <div class="form-group">
+          <label for="stock">Stock disponible</label>
+          <input type="number" id="stock" name="stock" min="0" value={product.stock} required />
+        </div>
+
+        <div class="form-group">
+          <label for="image">URL de la imagen del producto</label>
+          <input type="url" id="image" name="image" value={product.image} placeholder="https://ejemplo.com/imagen.jpg" required />
+          <small>Pega aquí la URL de tu imagen (puede ser de cualquier sitio)</small>
+        </div>
+
+        <div class="preview-container">
+          <h3>Vista previa de la imagen</h3>
+          <img id="image-preview" src={product.image} alt="Vista previa" />
+        </div>
+
+        <div class="botones">
+          <a href="/mis-productos" class="btn-cancelar">Cancelar</a>
+          <button type="submit" class="btn-guardar">
+            <i class="bi bi-check-lg"></i> Guardar cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <script define:vars={{ productId: id }}>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('form-editar');
+      const imageInput = document.getElementById('image');
+      const imagePreview = document.getElementById('image-preview');
+
+      // Actualizar vista previa de imagen
+      imageInput.addEventListener('input', () => {
+        imagePreview.src = imageInput.value;
+      });
+
+      // Manejar envío del formulario
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const data = {
+          title: formData.get('title'),
+          description: formData.get('description'),
+          price: parseFloat(formData.get('price')),
+          stock: parseInt(formData.get('stock')),
+          image: formData.get('image')
+        };
+
+        try {
+          const response = await fetch(`/api/products/update/${productId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            window.location.href = '/mis-productos?message=' + encodeURIComponent('Producto actualizado correctamente') + '&type=success';
+          } else {
+            alert(result.error || 'Error al actualizar el producto');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error al actualizar el producto');
+        }
+      });
+    });
+  </script>
+
+<style>
+  /* Estilos generales */
+  main {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .titulo-principal {
+    text-align: center;
+    margin: 2rem 0;
+    font-size: 2rem;
+    color: #2c3e50;
+    position: relative;
+  }
+
+  .titulo-principal::after {
+    content: '';
+    display: block;
+    width: 80px;
+    height: 4px;
+    background: #3498db;
+    margin: 10px auto;
+    border-radius: 2px;
+  }
+
+  /* Contenedor del formulario */
+  .contenedor-formulario {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  /* Grupos de formulario */
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #34495e;
+    font-size: 0.95rem;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border 0.3s, box-shadow 0.3s;
+    box-sizing: border-box;
+  }
+
+  .form-group textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+
+  /* Eliminar spinners en inputs numéricos */
+  .form-group input[type="number"]::-webkit-outer-spin-button,
+  .form-group input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .form-group input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  .form-group input:focus,
+  .form-group textarea:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    outline: none;
+  }
+
+  /* Estilo para el campo de precio */
+  .price-input-container {
+    position: relative;
+  }
+
+  .price-input-container::before {
+    content: '$';
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #7f8c8d;
+    z-index: 1;
+  }
+
+  .price-input-container input {
+    padding-left: 2rem !important;
+  }
+
+  /* Texto pequeño */
+  .form-group small {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    color: #7f8c8d;
+  }
+
+  /* Vista previa de imagen */
+  .preview-container {
+    margin: 2rem 0;
+    text-align: center;
+  }
+
+  .preview-container h3 {
+    color: #34495e;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+  }
+
+  #image-preview {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Contenedor de botones */
+  .botones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  /* Botones */
+  .btn-cancelar,
+  .btn-guardar {
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+
+  .btn-cancelar {
+    background: #f8f9fa;
+    color: #2c3e50;
+    border: 1px solid #ddd;
+  }
+
+  .btn-cancelar:hover {
+    background: #e9ecef;
+  }
+
+  .btn-guardar {
+    background: #3498db;
+    color: white;
+    border: none;
+  }
+
+  .btn-guardar:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .contenedor-formulario {
+      padding: 1.5rem;
+    }
+
+    .botones {
+      flex-direction: column;
+    }
+
+    .btn-cancelar,
+    .btn-guardar {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .titulo-principal {
+      font-size: 1.5rem;
+    }
+  }
+</style>
+
+</body>
+</html> 
