@@ -2,37 +2,55 @@ import { createClient } from '@libsql/client';
 
 const schema = `
 -- Tabla de usuarios
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS User (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL UNIQUE,
-  password TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  password TEXT NOT NULL
 );
 
 -- Tabla de productos
-CREATE TABLE IF NOT EXISTS products (
+CREATE TABLE IF NOT EXISTS Product (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
-  description TEXT,
+  description TEXT NOT NULL,
   price REAL NOT NULL,
   old_price REAL,
-  stock INTEGER NOT NULL DEFAULT 0,
-  image TEXT,
-  user_id INTEGER,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id)
+  image TEXT NOT NULL,
+  stock INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES User(id)
 );
 
 -- Tabla de items del carrito
-CREATE TABLE IF NOT EXISTS cart_items (
+CREATE TABLE IF NOT EXISTS CartItem (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   product_id INTEGER NOT NULL,
-  quantity INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (product_id) REFERENCES products(id)
+  quantity INTEGER NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES User(id),
+  FOREIGN KEY (product_id) REFERENCES Product(id)
+);
+
+-- Tabla Order
+CREATE TABLE IF NOT EXISTS "Order" (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  total REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES User(id)
+);
+
+-- Tabla OrderItem
+CREATE TABLE IF NOT EXISTS "OrderItem" (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+  quantity INTEGER NOT NULL,
+  price REAL NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES "Order"(id),
+  FOREIGN KEY (product_id) REFERENCES Product(id)
 );`;
 async function initDatabase() {
   try {

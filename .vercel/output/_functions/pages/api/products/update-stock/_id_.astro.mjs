@@ -1,6 +1,6 @@
-import { d as db } from '../../../../chunks/db_DsEsNE26.mjs';
-import { a as getProductById } from '../../../../chunks/queries_BON_RnUO.mjs';
-export { renderers } from '../../../../renderers.mjs';
+import { d as db } from '../../../../chunks/db_ug6_8mX0.mjs';
+import { a as getProductById } from '../../../../chunks/queries_CK1OoBgf.mjs';
+export { r as renderers } from '../../../../chunks/internal_BsTt5pTQ.mjs';
 
 const PATCH = async ({ params, request, cookies }) => {
   try {

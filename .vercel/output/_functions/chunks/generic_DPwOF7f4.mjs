@@ -1,9 +1,9 @@
 import { j as joinPaths, i as isRemotePath } from './path_BuZodYwm.mjs';
-import { A as AstroError, E as ExpectedImage, L as LocalImageUsedWrongly, j as MissingImageDimension, U as UnsupportedImageFormat, I as IncompatibleDescriptorOptions, k as UnsupportedImageConversion, t as toStyleString, l as NoImageMetadata, n as FailedToFetchRemoteImageDimensions, o as ExpectedImageOptions, p as ExpectedNotESMImage, q as InvalidImageService, c as createComponent, a as createAstro, s as ImageMissingAlt, m as maybeRenderHead, f as addAttribute, u as spreadAttributes, r as renderTemplate, v as ExperimentalFontsNotEnabled, w as FontFamilyNotFound, x as unescapeHTML } from './astro/server_G6lzf5hl.mjs';
+import { A as AstroError, E as ExpectedImage, L as LocalImageUsedWrongly, j as MissingImageDimension, U as UnsupportedImageFormat, I as IncompatibleDescriptorOptions, k as UnsupportedImageConversion, t as toStyleString, l as NoImageMetadata, n as FailedToFetchRemoteImageDimensions, o as ExpectedImageOptions, p as ExpectedNotESMImage, q as InvalidImageService, c as createComponent, a as createAstro, s as ImageMissingAlt, m as maybeRenderHead, f as addAttribute, u as spreadAttributes, r as renderTemplate, v as ExperimentalFontsNotEnabled, w as FontFamilyNotFound, x as unescapeHTML } from './astro/server_C2wD1PaE.mjs';
 import 'clsx';
 import * as mime from 'mrmime';
 import 'kleur/colors';
-import '../renderers.mjs';
+import './internal_BsTt5pTQ.mjs';
 
 const VALID_SUPPORTED_FORMATS = [
   "jpeg",
@@ -1177,15 +1177,9 @@ function detector(input) {
   return types.find((fileType) => typeHandlers.get(fileType).validate(input));
 }
 
-const globalOptions = {
-  disabledTypes: []
-};
 function lookup(input) {
   const type = detector(input);
   if (typeof type !== "undefined") {
-    if (globalOptions.disabledTypes.includes(type)) {
-      throw new TypeError("disabled file type: " + type);
-    }
     const size = typeHandlers.get(type).calculate(input);
     if (size !== void 0) {
       size.type = size.type ?? type;
@@ -1262,7 +1256,7 @@ async function getConfiguredImageService() {
   if (!globalThis?.astroAsset?.imageService) {
     const { default: service } = await import(
       // @ts-expect-error
-      './sharp_CQI2qTFT.mjs'
+      './sharp_Do0Pb8_I.mjs'
     ).catch((e) => {
       const error = new AstroError(InvalidImageService);
       error.cause = e;
@@ -1436,7 +1430,7 @@ const $$Image = createComponent(async ($$result, $$props, $$slots) => {
   }
   const { class: className, ...attributes } = { ...additionalAttributes, ...image.attributes };
   return renderTemplate`${maybeRenderHead()}<img${addAttribute(image.src, "src")}${spreadAttributes(attributes)}${addAttribute(className, "class")}>`;
-}, "C:/Users/tendo/OneDrive/Desktop/astro-ecommerce/node_modules/astro/components/Image.astro", void 0);
+}, "C:/Users/tendo/OneDrive/Desktop/ecommerce-astro-final/node_modules/astro/components/Image.astro", void 0);
 
 const $$Astro$1 = createAstro();
 const $$Picture = createComponent(async ($$result, $$props, $$slots) => {
@@ -1507,13 +1501,13 @@ const $$Picture = createComponent(async ($$result, $$props, $$slots) => {
     const srcsetAttribute = props.densities || !props.densities && !props.widths && !useResponsive ? `${image.src}${image.srcSet.values.length > 0 ? ", " + image.srcSet.attribute : ""}` : image.srcSet.attribute;
     return renderTemplate`<source${addAttribute(srcsetAttribute, "srcset")}${addAttribute(mime.lookup(image.options.format ?? image.src) ?? `image/${image.options.format}`, "type")}${spreadAttributes(sourceAdditionalAttributes)}>`;
   })}  <img${addAttribute(fallbackImage.src, "src")}${spreadAttributes(attributes)}${addAttribute(className, "class")}> </picture>`;
-}, "C:/Users/tendo/OneDrive/Desktop/astro-ecommerce/node_modules/astro/components/Picture.astro", void 0);
+}, "C:/Users/tendo/OneDrive/Desktop/ecommerce-astro-final/node_modules/astro/components/Picture.astro", void 0);
 
 const $$Astro = createAstro();
 const $$Font = createComponent(async ($$result, $$props, $$slots) => {
   const Astro2 = $$result.createAstro($$Astro, $$props, $$slots);
   Astro2.self = $$Font;
-  const { fontsData } = await import('virtual:astro:assets/fonts/internal').catch(() => {
+  const { fontsData } = await import('./internal_BsTt5pTQ.mjs').then(n => n.i).catch(() => {
     throw new AstroError(ExperimentalFontsNotEnabled);
   });
   const { cssVariable, preload = false } = Astro2.props;
@@ -1525,7 +1519,7 @@ const $$Font = createComponent(async ($$result, $$props, $$slots) => {
     });
   }
   return renderTemplate`${preload && data.preloadData.map(({ url, type }) => renderTemplate`<link rel="preload"${addAttribute(url, "href")} as="font"${addAttribute(`font/${type}`, "type")} crossorigin>`)}<style>${unescapeHTML(data.css)}</style>`;
-}, "C:/Users/tendo/OneDrive/Desktop/astro-ecommerce/node_modules/astro/components/Font.astro", void 0);
+}, "C:/Users/tendo/OneDrive/Desktop/ecommerce-astro-final/node_modules/astro/components/Font.astro", void 0);
 
 const imageConfig = {"endpoint":{"route":"/_image"},"service":{"entrypoint":"astro/assets/services/sharp","config":{}},"domains":[],"remotePatterns":[],"experimentalResponsiveImages":false};
 							const getImage = async (options) => await getImage$1(options, imageConfig);

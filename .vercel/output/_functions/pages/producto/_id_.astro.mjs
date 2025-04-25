@@ -1,9 +1,9 @@
-import { c as createComponent, a as createAstro, r as renderTemplate, g as defineScriptVars, f as addAttribute, e as renderHead, d as renderComponent } from '../../chunks/astro/server_G6lzf5hl.mjs';
+import { c as createComponent, a as createAstro, r as renderTemplate, g as defineScriptVars, f as addAttribute, e as renderHead, d as renderComponent } from '../../chunks/astro/server_C2wD1PaE.mjs';
 import 'kleur/colors';
-import { $ as $$Header } from '../../chunks/Header_CmSBQoe_.mjs';
-import { a as getProductById } from '../../chunks/queries_BON_RnUO.mjs';
+import { $ as $$Header } from '../../chunks/Header_3mcUBbRI.mjs';
+import { a as getProductById } from '../../chunks/queries_CK1OoBgf.mjs';
 /* empty css                                   */
-export { renderers } from '../../renderers.mjs';
+export { r as renderers } from '../../chunks/internal_BsTt5pTQ.mjs';
 
 var __freeze = Object.freeze;
 var __defProp = Object.defineProperty;
@@ -93,9 +93,9 @@ const $$id = createComponent(async ($$result, $$props, $$slots) => {
       }
     }
   })();<\/script>  </body> </html>`])), product.title, renderComponent($$result, "Header", $$Header, { "data-astro-cid-mvbiubgv": true }), renderHead(), addAttribute(product.image, "src"), addAttribute(product.title, "alt"), product.title, product.description, product.price.toFixed(2), product.old_price && renderTemplate`<span class="precio-anterior" data-astro-cid-mvbiubgv>$${product.old_price.toFixed(2)}</span>`, product.stock, defineScriptVars({ user, productId }));
-}, "C:/Users/tendo/OneDrive/Desktop/astro-ecommerce/src/pages/producto/[id].astro", void 0);
+}, "C:/Users/tendo/OneDrive/Desktop/ecommerce-astro-final/src/pages/producto/[id].astro", void 0);
 
-const $$file = "C:/Users/tendo/OneDrive/Desktop/astro-ecommerce/src/pages/producto/[id].astro";
+const $$file = "C:/Users/tendo/OneDrive/Desktop/ecommerce-astro-final/src/pages/producto/[id].astro";
 const $$url = "/producto/[id]";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({

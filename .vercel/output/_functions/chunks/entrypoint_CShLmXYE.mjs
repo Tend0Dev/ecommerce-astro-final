@@ -1,8 +1,8 @@
-import { y as decryptString, z as createSlotValueFromString, B as isAstroComponentFactory, d as renderComponent, r as renderTemplate, C as ROUTE_TYPE_HEADER, G as REROUTE_DIRECTIVE_HEADER, A as AstroError, H as i18nNoLocaleFoundInPath, J as ResponseSentError, K as MiddlewareNoDataOrNextCalled, O as MiddlewareNotAResponse, P as originPathnameSymbol, Q as RewriteWithBodyUsed, S as GetStaticPathsRequired, T as InvalidGetStaticPathsReturn, V as InvalidGetStaticPathsEntry, W as GetStaticPathsExpectedParams, X as GetStaticPathsInvalidRouteParam, Y as PageNumberParamNotFound, D as DEFAULT_404_COMPONENT, Z as ActionNotFoundError, _ as NoMatchingStaticPathFound, $ as PrerenderDynamicEndpointPathCollide, a0 as ReservedSlotName, a1 as renderSlotToString, a2 as renderJSX, a3 as chunkToString, a4 as isRenderInstruction, a5 as ForbiddenRewrite, a6 as SessionStorageSaveError, a7 as SessionStorageInitError, a8 as ASTRO_VERSION, a9 as LocalsReassigned, aa as PrerenderClientAddressNotAvailable, ab as clientAddressSymbol, ac as ClientAddressNotAvailable, ad as StaticClientAddressNotAvailable, ae as AstroResponseHeadersReassigned, af as responseSentSymbol$1, ag as renderPage, ah as REWRITE_DIRECTIVE_HEADER_KEY, ai as REWRITE_DIRECTIVE_HEADER_VALUE, aj as renderEndpoint, ak as LocalsNotAnObject, al as REROUTABLE_STATUS_CODES } from './astro/server_G6lzf5hl.mjs';
+import { y as decryptString, z as createSlotValueFromString, B as isAstroComponentFactory, d as renderComponent, r as renderTemplate, C as ROUTE_TYPE_HEADER, G as REROUTE_DIRECTIVE_HEADER, A as AstroError, H as i18nNoLocaleFoundInPath, J as ResponseSentError, K as MiddlewareNoDataOrNextCalled, O as MiddlewareNotAResponse, P as originPathnameSymbol, Q as RewriteWithBodyUsed, S as GetStaticPathsRequired, T as InvalidGetStaticPathsReturn, V as InvalidGetStaticPathsEntry, W as GetStaticPathsExpectedParams, X as GetStaticPathsInvalidRouteParam, Y as PageNumberParamNotFound, D as DEFAULT_404_COMPONENT, Z as ActionNotFoundError, _ as NoMatchingStaticPathFound, $ as PrerenderDynamicEndpointPathCollide, a0 as ReservedSlotName, a1 as renderSlotToString, a2 as renderJSX, a3 as chunkToString, a4 as isRenderInstruction, a5 as ForbiddenRewrite, a6 as SessionStorageSaveError, a7 as SessionStorageInitError, a8 as ASTRO_VERSION, a9 as LocalsReassigned, aa as PrerenderClientAddressNotAvailable, ab as clientAddressSymbol, ac as ClientAddressNotAvailable, ad as StaticClientAddressNotAvailable, ae as AstroResponseHeadersReassigned, af as responseSentSymbol$1, ag as renderPage, ah as REWRITE_DIRECTIVE_HEADER_KEY, ai as REWRITE_DIRECTIVE_HEADER_VALUE, aj as renderEndpoint, ak as LocalsNotAnObject, al as REROUTABLE_STATUS_CODES } from './astro/server_C2wD1PaE.mjs';
 import { bold, red, yellow, dim, blue, green } from 'kleur/colors';
 import 'clsx';
 import { serialize, parse } from 'cookie';
-import { A as ActionError, d as deserializeActionResult, s as serializeActionResult, a as ACTION_RPC_ROUTE_PATTERN, b as ACTION_QUERY_PARAMS, g as getActionQueryString, D as DEFAULT_404_ROUTE, c as default404Instance, N as NOOP_MIDDLEWARE_FN, e as ensure404Route } from './astro-designed-error-pages_BuYJlaTG.mjs';
+import { A as ActionError, d as deserializeActionResult, s as serializeActionResult, a as ACTION_RPC_ROUTE_PATTERN, b as ACTION_QUERY_PARAMS, g as getActionQueryString, D as DEFAULT_404_ROUTE, c as default404Instance, N as NOOP_MIDDLEWARE_FN, e as ensure404Route } from './astro-designed-error-pages_BV6QnfRi.mjs';
 import 'es-module-lexer';
 import buffer from 'node:buffer';
 import crypto$1 from 'node:crypto';
@@ -1787,6 +1787,7 @@ function sequence(...handlers) {
                 handleContext.request
               );
             }
+            const oldPathname = handleContext.url.pathname;
             const pipeline = Reflect.get(handleContext, apiContextRoutesSymbol);
             const { routeData, pathname } = await pipeline.tryRewrite(
               payload,
@@ -1808,6 +1809,7 @@ function sequence(...handlers) {
             handleContext.url = new URL(newRequest.url);
             handleContext.cookies = new AstroCookies(newRequest);
             handleContext.params = getParams(routeData, pathname);
+            setOriginPathname(handleContext.request, oldPathname);
           }
           return applyHandle(i + 1, handleContext);
         } else {
@@ -2322,6 +2324,7 @@ class RenderContext {
     }
     const lastNext = async (ctx, payload) => {
       if (payload) {
+        const oldPathname = this.pathname;
         pipeline.logger.debug("router", "Called rewriting to:", payload);
         const {
           routeData,
@@ -2356,6 +2359,7 @@ class RenderContext {
         this.params = getParams(routeData, pathname);
         this.pathname = pathname;
         this.status = 200;
+        setOriginPathname(this.request, oldPathname);
       }
       let response2;
       if (!ctx.isPrerendered) {
@@ -2433,6 +2437,7 @@ class RenderContext {
   }
   async #executeRewrite(reroutePayload) {
     this.pipeline.logger.debug("router", "Calling rewrite: ", reroutePayload);
+    const oldPathname = this.pathname;
     const { routeData, componentInstance, newUrl, pathname } = await this.pipeline.tryRewrite(
       reroutePayload,
       this.request
@@ -2463,6 +2468,7 @@ class RenderContext {
     this.pathname = pathname;
     this.isRewriting = true;
     this.status = 200;
+    setOriginPathname(this.request, oldPathname);
     return await this.render(componentInstance);
   }
   createActionAPIContext() {
@@ -2855,8 +2861,7 @@ function redirectTemplate({
 }
 
 class AppPipeline extends Pipeline {
-  #manifestData;
-  static create(manifestData, {
+  static create({
     logger,
     manifest,
     runtimeMode,
@@ -2884,7 +2889,6 @@ class AppPipeline extends Pipeline {
       void 0,
       defaultRoutes
     );
-    pipeline.#manifestData = manifestData;
     return pipeline;
   }
   headElements(routeData) {
@@ -2971,7 +2975,7 @@ class App {
     };
     ensure404Route(this.#manifestData);
     this.#baseWithoutTrailingSlash = removeTrailingForwardSlash(this.#manifest.base);
-    this.#pipeline = this.#createPipeline(this.#manifestData, streaming);
+    this.#pipeline = this.#createPipeline(streaming);
     this.#adapterLogger = new AstroIntegrationLogger(
       this.#logger.options,
       this.#manifest.adapterName
@@ -2983,12 +2987,11 @@ class App {
   /**
    * Creates a pipeline by reading the stored manifest
    *
-   * @param manifestData
    * @param streaming
    * @private
    */
-  #createPipeline(manifestData, streaming = false) {
-    return AppPipeline.create(manifestData, {
+  #createPipeline(streaming = false) {
+    return AppPipeline.create({
       logger: this.#logger,
       manifest: this.#manifest,
       runtimeMode: "production",

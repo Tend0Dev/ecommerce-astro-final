@@ -1,4 +1,4 @@
-import { d as db } from './db_DsEsNE26.mjs';
+import { d as db } from './db_ug6_8mX0.mjs';
 
 async function getProducts(userId) {
   try {
@@ -47,7 +47,7 @@ async function getProductById(id) {
 async function createProduct(product) {
   const result = await db.execute({
     sql: `
-      INSERT INTO products (title, description, price, old_price, stock, image, user_id)
+      INSERT INTO Product (title, description, price, old_price, stock, image, user_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
     args: [
